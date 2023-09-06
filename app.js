@@ -18,12 +18,12 @@ if (typeof(PhusionPassenger) == 'undefined') {
  * in production.
  */
 function lookupFile(req) {
-	var name;
-	if (req.url == '/') {
+	var name = '/index.html';
+	/*if (req.url == '/') {
 		name = '/index.html';
 	} else {
 		name = req.url;
-	}
+	}*/
 	return __dirname + '/public' + name;
 }
 
@@ -54,7 +54,7 @@ function handler(req, res) {
 io.sockets.on('connection', function (socket) {
 	setInterval(function() {
 		socket.emit('news', { message: new Date() + '' });
-	}, 60000);
+	}, 5000);
 
 	socket.emit('news', { message: new Date() + '' });
 
