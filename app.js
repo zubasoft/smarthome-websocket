@@ -47,18 +47,41 @@ function handler(req, res) {
 	});
 }
 
-/**
- * The handler function for Socket.io. For every incoming connection,
- * it sends the current timestamp once a second.
- */
-io.sockets.on('connection', function (socket) {
-	setInterval(function() {
-		socket.emit('news', { message: new Date() + '' });
-	}, 5000);
+function isUnauthorized(event) {
+	return true;
+}
 
-	socket.emit('news', { message: new Date() + '' });
 
-	socket.on('message', function(data) {
-		socket.emit('news', { message: "The server received your message: \"" + data + "\"" });
+io.on("connection", (socket) => {
+	console.log('connection', socket.id);
+	console.log('connection', socket.handshake.auth);
+	socket.join(10);
+	console.log('connection', socket.id + ' joined 10');
+
+	socket.use(([event, ...args], next) => {
+		console.log(socket.handshake.auth);
+		console.log(args, event);
+
+		if (isUnauthorized(event) === false) {
+			console.log("unauthorized event");
+			return next(new Error("unauthorized event"));
+		}
+
+		next();
 	});
+
+	socket.on("error", (err) => {
+		if (err && err.message === "unauthorized event") {
+			socket.disconnect();
+		}
+	});
+
+	socket.on('getImage', function(data) {
+		io.to(10).emit('captureImage', { data });
+	});
+
+	socket.on('returnImage', function(data) {
+		io.to(10).emit('returnImage', { data });
+	});
+
 });
