@@ -2,7 +2,12 @@ var server = require('http').createServer(handler);
 var io = require('socket.io')(server, {
   // ...
 });
+var login = require('./framework/Login.js').login;
+var network = require('./framework/Network.js').network;
+var auth = require('./framework/Auth.js').auth;
 var fs = require('fs');
+
+const deviceID = 'zs_websocket_server';
 
 server.listen(3000);
 
@@ -51,12 +56,34 @@ function isUnauthorized(event) {
 	return true;
 }
 
+function getRoomID(s, d) {
+	return new Promise((resolve, reject) => {
+		console.log('auth', auth.getSessionID());
+
+		network.ajax({
+			url    : 'user/getRoomID',
+			device_id: deviceID,
+			data   : {
+				session_id: s,
+				device_id: d
+			}
+		}).then((json) => {
+			if(json.room_id) {
+				resolve(json.room_id);
+			}
+		});
+	});
+}
+
 
 io.on("connection", (socket) => {
-	console.log('connection', socket.id);
-	console.log('connection', socket.handshake.auth);
-	socket.join(10);
-	console.log('connection', socket.id + ' joined 10');
+	console.log(socket.id);
+	login(deviceID).then((json) => {
+		getRoomID(socket.handshake.auth.s, socket.handshake.auth.d).then((roomID) => {
+			socket.join(roomID);
+			console.log('connection', socket.id + ' joined ' + roomID);
+		});
+	});
 
 	socket.use(([event, ...args], next) => {
 		console.log(socket.handshake.auth);
@@ -77,11 +104,15 @@ io.on("connection", (socket) => {
 	});
 
 	socket.on('getImage', function(data) {
-		io.to(10).emit('captureImage', { data });
+		getRoomID(socket.handshake.auth.s, socket.handshake.auth.d).then((roomID) => {
+			io.to(roomID).emit('captureImage', { data });
+		});
 	});
 
 	socket.on('returnImage', function(data) {
-		io.to(10).emit('returnImage', { data });
+		getRoomID(socket.handshake.auth.s, socket.handshake.auth.d).then((roomID) => {
+			io.to(roomID).emit('returnImage', { data });
+		});
 	});
 
 });
