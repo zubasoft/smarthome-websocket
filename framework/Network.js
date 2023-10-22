@@ -118,7 +118,7 @@ exports.network = {
     },
 
     ajax(options) {
-        return new Promise((resolve) => {
+        return new Promise((resolve, reject) => {
             let u_conf = this._extentAjaxOptions(options);
 
             let u_sessID = auth.getSessionID();
@@ -142,12 +142,12 @@ exports.network = {
 
             // just make sure to show the loading on large request handling (several MB)
             u_promise.then(() => {
-                this.getAjaxObject(u_conf, resolve);
+                this.getAjaxObject(u_conf, resolve, reject);
             });
         });
     },
 
-    getAjaxObject(options, parentResolve) {
+    getAjaxObject(options, parentResolve, parentReject) {
         let u_conf = this._extentAjaxOptions(options),
             u_data = JSON.stringify(u_conf.data);
 
@@ -190,6 +190,7 @@ exports.network = {
                     .then(response => {
                         if(response.status === 401 || response.status === 403) {
 							console.error('no permission', u_url);
+                            parentReject('no permission');
                         }
 						
                         return response.json();
@@ -246,6 +247,7 @@ exports.network = {
                     })
                     .catch(error => {
                         console.error('Error:', error);
+                        parentReject(error);
                     });
             });
         });

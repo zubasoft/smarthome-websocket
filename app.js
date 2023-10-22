@@ -6,13 +6,27 @@ var login = require('./framework/Login.js').login;
 var network = require('./framework/Network.js').network;
 var auth = require('./framework/Auth.js').auth;
 var fs = require('fs');
+var util = require('util');
 
 const deviceID = 'zs_websocket_server';
+const log_file = fs.createWriteStream(__dirname + '/debug.log', {flags : 'w'});
+
+console.log = function(...d) {
+	log_file.write(new Date().toString() + ' Debug: ' + util.format(...d) + '\n');
+};
+console.error = function(...d) {
+	log_file.write(new Date().toString() + ' Error: ' + util.format(...d) + '\n');
+};
+console.warn = function(...d) {
+	log_file.write(new Date().toString() + 'Warning: ' + util.format(...d) + '\n');
+};
 
 server.listen(3000);
 
 if (typeof(PhusionPassenger) == 'undefined') {
 	console.log('Socket.io demo listening on http://127.0.0.1:' + server.address().port);
+} else {
+	console.log('Socket.io server stating via PhusionPassenger');
 }
 
 /**
@@ -57,8 +71,18 @@ function isUnauthorized(event) {
 }
 
 function getRoomID(s, d) {
-	return new Promise((resolve, reject) => {
-		console.log('auth', auth.getSessionID());
+	return new Promise(async (resolve, reject) => {
+		console.log('getRoomID - session id:', auth.getSessionID());
+
+		if(auth.getSessionID() === '') {
+			console.log('Try to login');
+			await login(deviceID);
+		}
+
+		if(auth.getSessionID() === '') {
+			console.error('No session');
+			return;
+		}
 
 		network.ajax({
 			url    : 'user/getRoomID',
@@ -76,13 +100,17 @@ function getRoomID(s, d) {
 }
 
 
-io.on("connection", (socket) => {
-	console.log(socket.id);
-	login(deviceID).then((json) => {
-		getRoomID(socket.handshake.auth.s, socket.handshake.auth.d).then((roomID) => {
-			socket.join(roomID);
-			console.log('connection', socket.id + ' joined ' + roomID);
-		});
+io.on("connection", async (socket) => {
+	console.log('connection', socket.id, process.env.WEB_EMAIL);
+
+	auth.logout();
+	await login(deviceID);
+
+	getRoomID(socket.handshake.auth.s, socket.handshake.auth.d).then((roomID) => {
+		socket.join(roomID);
+		console.log('connection', socket.id + ' joined ' + roomID);
+		console.log('emit ready now to room');
+		socket.emit('ready');
 	});
 
 	socket.use(([event, ...args], next) => {

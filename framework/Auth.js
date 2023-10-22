@@ -122,6 +122,8 @@ exports.auth = {
 
         if (pepperedPWD !== undefined && pepperedPWD !== null && pepperedPWD !== 'null') {
             u_data.pepperedPWD = pepperedPWD;
+        } else {
+            u_data.pepperedPWD = '';
         }
     },
 
